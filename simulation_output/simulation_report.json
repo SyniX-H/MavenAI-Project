@@ -1,0 +1,24 @@
+{
+  "status": "completed",
+  "start_time": "2025-12-15T01:25:41.258829",
+  "duration": 30,
+  "logs": [
+    "World file created with robot arm",
+    "Gazebo launched successfully",
+    "Robot arm loaded from world file",
+    "Initial screenshot captured",
+    "Running simulation for 30 seconds...",
+    "Captured 0 state snapshots",
+    "Final screenshot captured",
+    "Simulation completed successfully"
+  ],
+  "screenshots": [
+    "start.png",
+    "end.png"
+  ],
+  "simulation_data": {
+    "duration": 30,
+    "states_captured": 0,
+    "states": []
+  }
+}

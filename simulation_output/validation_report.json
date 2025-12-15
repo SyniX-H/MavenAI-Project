@@ -1,0 +1,16 @@
+{
+  "package_path": "/tmp/ros2_uploads/correct_package",
+  "status": "PASS",
+  "errors": [],
+  "warnings": [],
+  "info": [
+    "Extracted package to /tmp/ros2_uploads/correct_package",
+    "Found package.xml at /tmp/ros2_uploads/correct_package/correct_package/package.xml",
+    "Found setup.py (Python package)",
+    "\u2713 setup.py passed syntax check",
+    "\u2713 pick_place_node.py passed syntax check",
+    "\u2713 __init__.py passed syntax check",
+    "No C++ files found",
+    "Detected components: {'nodes': ['pick_place_node.py'], 'publishers': ['pick_place_node.py'], 'subscribers': ['pick_place_node.py'], 'services': [], 'actions': []}"
+  ]
+}

@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ROS2 Code Checker & Simulator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 30px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f5f5f5;
+        }
+
+        .upload-area.dragover {
+            background: #e3f2fd;
+            border-color: #2196F3;
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: transform 0.2s;
+            margin: 5px;
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .status {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            margin: 10px 0;
+        }
+
+        .status.success {
+            background: #4caf50;
+            color: white;
+        }
+
+        .status.error {
+            background: #f44336;
+            color: white;
+        }
+
+        .status.warning {
+            background: #ff9800;
+            color: white;
+        }
+
+        .status.info {
+            background: #2196F3;
+            color: white;
+        }
+
+        .report-box {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .screenshot-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .screenshot-gallery img {
+            width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .controls {
+            margin: 15px 0;
+        }
+
+        .controls label {
+            display: inline-block;
+            margin-right: 10px;
+            font-weight: 600;
+        }
+
+        .controls input[type="number"] {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            width: 100px;
+        }
+
+        .file-info {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        .file-info strong {
+            color: #667eea;
+        }
+
+        .progress-steps {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+        }
+
+        .step {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            position: relative;
+        }
+
+        .step::after {
+            content: '→';
+            position: absolute;
+            right: -10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #ccc;
+            font-size: 1.5rem;
+        }
+
+        .step:last-child::after {
+            content: '';
+        }
+
+        .step.active {
+            background: #e3f2fd;
+            border-radius: 8px;
+        }
+
+        .step.completed {
+            color: #4caf50;
+        }
+
+        .step-number {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            line-height: 30px;
+            border-radius: 50%;
+            background: #ccc;
+            color: white;
+            margin-bottom: 5px;
+        }
+
+        .step.active .step-number {
+            background: #2196F3;
+        }
+
+        .step.completed .step-number {
+            background: #4caf50;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 ROS2 Code Checker & Simulator</h1>
+            <p>Upload, validate, and simulate your ROS2 packages</p>
+        </div>
+
+        <div class="main-content">
+            <!-- Progress Steps -->
+            <div class="progress-steps">
+                <div class="step active" id="step1">
+                    <div class="step-number">1</div>
+                    <div>Upload</div>
+                </div>
+                <div class="step" id="step2">
+                    <div class="step-number">2</div>
+                    <div>Validate</div>
+                </div>
+                <div class="step" id="step3">
+                    <div class="step-number">3</div>
+                    <div>Simulate</div>
+                </div>
+            </div>
+
+            <!-- Step 1: Upload -->
+            <div class="section">
+                <h2>📦 Step 1: Upload ROS2 Package</h2>
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">📁</div>
+                    <p>Click or drag and drop your ZIP file here</p>
+                    <p style="font-size: 0.9rem; color: #666; margin-top: 10px;">
+                        Maximum file size: 50MB
+                    </p>
+                </div>
+                <input type="file" id="fileInput" accept=".zip">
+                <div id="uploadStatus" class="hidden"></div>
+                <div id="fileInfo" class="hidden file-info"></div>
+            </div>
+
+            <!-- Step 2: Validation -->
+            <div class="section">
+                <h2>✅ Step 2: Code Validation</h2>
+                <button class="btn" id="checkBtn" disabled>Run Validation Check</button>
+                <div id="checkStatus" class="hidden"></div>
+                <div id="validationReport" class="hidden">
+                    <h3 style="margin: 20px 0 10px 0;">Validation Report:</h3>
+                    <div class="report-box" id="reportContent"></div>
+                </div>
+            </div>
+
+            <!-- Step 3: Simulation -->
+            <div class="section">
+                <h2>🚀 Step 3: Run Simulation</h2>
+                <div class="controls">
+                    <label for="simDuration">Duration (seconds):</label>
+                    <input type="number" id="simDuration" value="30" min="10" max="120">
+                </div>
+                <button class="btn btn-secondary" id="simBtn" disabled>Launch Simulation</button>
+                <div id="simStatus" class="hidden"></div>
+                <div id="simulationResults" class="hidden">
+                    <h3 style="margin: 20px 0 10px 0;">Simulation Results:</h3>
+                    <div class="report-box" id="simLogs"></div>
+                    <div id="screenshots" class="screenshot-gallery"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000/api';
+        let uploadedFile = null;
+        let packagePath = null;
+
+        // DOM Elements
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const uploadStatus = document.getElementById('uploadStatus');
+        const fileInfo = document.getElementById('fileInfo');
+        const checkBtn = document.getElementById('checkBtn');
+        const checkStatus = document.getElementById('checkStatus');
+        const validationReport = document.getElementById('validationReport');
+        const reportContent = document.getElementById('reportContent');
+        const simBtn = document.getElementById('simBtn');
+        const simStatus = document.getElementById('simStatus');
+        const simulationResults = document.getElementById('simulationResults');
+        const simLogs = document.getElementById('simLogs');
+        const screenshots = document.getElementById('screenshots');
+        const simDuration = document.getElementById('simDuration');
+
+        // Progress steps
+        const step1 = document.getElementById('step1');
+        const step2 = document.getElementById('step2');
+        const step3 = document.getElementById('step3');
+
+        // Upload handling
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileUpload(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileUpload(e.target.files[0]);
+            }
+        });
+
+        async function handleFileUpload(file) {
+            if (!file.name.endsWith('.zip')) {
+                showStatus(uploadStatus, '❌ Please upload a ZIP file', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            showStatus(uploadStatus, 'Uploading... <span class="loading"></span>', 'info');
+            fileInfo.classList.add('hidden');
+
+            try {
+                const response = await fetch(`${API_URL}/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    uploadedFile = data.filepath;
+                    showStatus(uploadStatus, `✅ File uploaded: ${data.filename}`, 'success');
+                    
+                    fileInfo.innerHTML = `
+                        <strong>Uploaded File:</strong> ${data.filename}<br>
+                        <strong>Path:</strong> ${data.filepath}
+                    `;
+                    fileInfo.classList.remove('hidden');
+                    
+                    checkBtn.disabled = false;
+                    step1.classList.add('completed');
+                    step2.classList.add('active');
+                } else {
+                    showStatus(uploadStatus, `❌ Error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showStatus(uploadStatus, `❌ Upload failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Validation handling
+        checkBtn.addEventListener('click', async () => {
+            showStatus(checkStatus, 'Running validation... <span class="loading"></span>', 'info');
+            validationReport.classList.add('hidden');
+
+            try {
+                const response = await fetch(`${API_URL}/check`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filepath: uploadedFile })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    const report = data.json_report;
+                    const statusClass = report.status === 'PASS' ? 'success' : 'error';
+                    showStatus(checkStatus, `Validation ${report.status}`, statusClass);
+                    
+                    reportContent.textContent = data.text_report;
+                    validationReport.classList.remove('hidden');
+                    
+                    if (report.status === 'PASS') {
+                        simBtn.disabled = false;
+                        packagePath = report.package_path;
+                        step2.classList.add('completed');
+                        step3.classList.add('active');
+                    }
+                } else {
+                    showStatus(checkStatus, `❌ Validation error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showStatus(checkStatus, `❌ Check failed: ${error.message}`, 'error');
+            }
+        });
+
+        // Simulation handling
+        simBtn.addEventListener('click', async () => {
+            showStatus(simStatus, 'Launching simulation... <span class="loading"></span>', 'info');
+            simulationResults.classList.add('hidden');
+
+            try {
+                const response = await fetch(`${API_URL}/simulate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        package_path: packagePath,
+                        duration: parseInt(simDuration.value)
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showStatus(simStatus, '✅ Simulation completed', 'success');
+                    displaySimulationResults(data.report);
+                    step3.classList.add('completed');
+                } else {
+                    showStatus(simStatus, `❌ Simulation error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showStatus(simStatus, `❌ Simulation failed: ${error.message}`, 'error');
+            }
+        });
+
+        function displaySimulationResults(report) {
+            simLogs.textContent = JSON.stringify(report, null, 2);
+            
+            screenshots.innerHTML = '';
+            if (report.screenshots && report.screenshots.length > 0) {
+                report.screenshots.forEach(img => {
+                    const imgEl = document.createElement('img');
+                    imgEl.src = `${API_URL}/results/${img}`;
+                    imgEl.alt = img;
+                    imgEl.onerror = () => {
+                        imgEl.style.display = 'none';
+                    };
+                    screenshots.appendChild(imgEl);
+                });
+            }
+            
+            simulationResults.classList.remove('hidden');
+        }
+
+        function showStatus(element, message, type) {
+            element.className = `status ${type}`;
+            element.innerHTML = message;
+            element.classList.remove('hidden');
+        }
+
+        // Check server status on load
+        window.addEventListener('load', async () => {
+            try {
+                const response = await fetch(`${API_URL}/status`);
+                if (response.ok) {
+                    console.log('✓ Connected to backend server');
+                }
+            } catch (error) {
+                alert('⚠️ Cannot connect to backend server. Make sure Flask is running:\n\npython3 app.py');
+            }
+        });
+    </script>
+</body>
+</html>

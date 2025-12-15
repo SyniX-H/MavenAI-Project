@@ -1,0 +1,16 @@
+============================================================
+ROS2 PACKAGE VALIDATION REPORT
+============================================================
+
+Package: /tmp/ros2_uploads/correct_package
+Status: PASS
+
+INFO:
+  ℹ Extracted package to /tmp/ros2_uploads/correct_package
+  ℹ Found package.xml at /tmp/ros2_uploads/correct_package/correct_package/package.xml
+  ℹ Found setup.py (Python package)
+  ℹ ✓ setup.py passed syntax check
+  ℹ ✓ pick_place_node.py passed syntax check
+  ℹ ✓ __init__.py passed syntax check
+  ℹ No C++ files found
+  ℹ Detected components: {'nodes': ['pick_place_node.py'], 'publishers': ['pick_place_node.py'], 'subscribers': ['pick_place_node.py'], 'services': [], 'actions': []}
