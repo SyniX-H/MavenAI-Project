@@ -23,28 +23,32 @@ class GazeboSimRunner:
         return commands
     
     def create_world_file(self) -> str:
-        """Create a simple Gazebo world with UR5 arm, cube, and target"""
-        
-        # First, check if UR5 SDF exists, if not create a simple one
-        ur5_sdf_path = Path("ur5.sdf")
+        """Create a Gazebo world with custom Panda-like robot arm"""
         
         world_content = """<?xml version="1.0"?>
 <sdf version="1.6">
-  <world name="pick_and_place_world">
+  <world name="robot_demo">
     
-    <physics name="1ms" type="ignored">
+    <physics name="1ms" type="ode">
       <max_step_size>0.001</max_step_size>
       <real_time_factor>1.0</real_time_factor>
     </physics>
     
+    <scene>
+      <ambient>0.4 0.4 0.4 1</ambient>
+      <background>0.7 0.7 0.7 1</background>
+      <shadows>true</shadows>
+    </scene>
+    
     <light type="directional" name="sun">
       <cast_shadows>true</cast_shadows>
       <pose>0 0 10 0 0 0</pose>
-      <diffuse>0.8 0.8 0.8 1</diffuse>
-      <specular>0.2 0.2 0.2 1</specular>
+      <diffuse>1 1 1 1</diffuse>
+      <specular>0.5 0.5 0.5 1</specular>
       <direction>-0.5 0.1 -0.9</direction>
     </light>
     
+    <!-- Ground -->
     <model name="ground_plane">
       <static>true</static>
       <link name="link">
@@ -66,20 +70,279 @@ class GazeboSimRunner:
           <material>
             <ambient>0.8 0.8 0.8 1</ambient>
             <diffuse>0.8 0.8 0.8 1</diffuse>
+            <specular>0 0 0 1</specular>
           </material>
         </visual>
       </link>
     </model>
     
-    <!-- UR5 from Gazebo Fuel -->
-    <include>
-      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/UR5</uri>
-      <name>ur5_robot</name>
+    <!-- Panda-like 6-DOF Robot Arm -->
+    <model name="panda_arm">
       <pose>0 0 0 0 0 0</pose>
-    </include>
+      <static>false</static>
+      
+      <!-- Base Link -->
+      <link name="base_link">
+        <pose>0 0 0 0 0 0</pose>
+        <inertial>
+          <mass>4.0</mass>
+          <inertia>
+            <ixx>0.1</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>0.1</iyy>
+            <iyz>0</iyz>
+            <izz>0.1</izz>
+          </inertia>
+        </inertial>
+        <collision name="collision">
+          <geometry>
+            <cylinder>
+              <radius>0.06</radius>
+              <length>0.15</length>
+            </cylinder>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <cylinder>
+              <radius>0.06</radius>
+              <length>0.15</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>0.9 0.9 0.9 1</ambient>
+            <diffuse>0.9 0.9 0.9 1</diffuse>
+          </material>
+        </visual>
+      </link>
+      
+      <!-- Link 1 (Vertical) -->
+      <link name="link1">
+        <pose>0 0 0.2 0 0 0</pose>
+        <inertial>
+          <mass>3.0</mass>
+          <inertia>
+            <ixx>0.05</ixx>
+            <iyy>0.05</iyy>
+            <izz>0.01</izz>
+          </inertia>
+        </inertial>
+        <collision name="collision">
+          <geometry>
+            <cylinder>
+              <radius>0.05</radius>
+              <length>0.2</length>
+            </cylinder>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <cylinder>
+              <radius>0.05</radius>
+              <length>0.2</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>1 0.5 0 1</ambient>
+            <diffuse>1 0.6 0 1</diffuse>
+          </material>
+        </visual>
+      </link>
+      
+      <!-- Link 2 (Upper Arm) -->
+      <link name="link2">
+        <pose>0.15 0 0.3 0 1.57 0</pose>
+        <inertial>
+          <mass>2.5</mass>
+          <inertia>
+            <ixx>0.04</ixx>
+            <iyy>0.04</iyy>
+            <izz>0.01</izz>
+          </inertia>
+        </inertial>
+        <collision name="collision">
+          <geometry>
+            <cylinder>
+              <radius>0.04</radius>
+              <length>0.3</length>
+            </cylinder>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <cylinder>
+              <radius>0.04</radius>
+              <length>0.3</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>0.2 0.2 0.2 1</ambient>
+            <diffuse>0.3 0.3 0.3 1</diffuse>
+          </material>
+        </visual>
+      </link>
+      
+      <!-- Link 3 (Forearm Part 1) -->
+      <link name="link3">
+        <pose>0.3 0 0.25 0 1.57 0</pose>
+        <inertial>
+          <mass>2.0</mass>
+          <inertia>
+            <ixx>0.03</ixx>
+            <iyy>0.03</iyy>
+            <izz>0.01</izz>
+          </inertia>
+        </inertial>
+        <collision name="collision">
+          <geometry>
+            <cylinder>
+              <radius>0.035</radius>
+              <length>0.25</length>
+            </cylinder>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <cylinder>
+              <radius>0.035</radius>
+              <length>0.25</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>1 0.5 0 1</ambient>
+            <diffuse>1 0.6 0 1</diffuse>
+          </material>
+        </visual>
+      </link>
+      
+      <!-- Link 4 (Forearm Part 2) -->
+      <link name="link4">
+        <pose>0.425 0 0.2 0 1.57 0</pose>
+        <inertial>
+          <mass>1.5</mass>
+          <inertia>
+            <ixx>0.02</ixx>
+            <iyy>0.02</iyy>
+            <izz>0.01</izz>
+          </inertia>
+        </inertial>
+        <collision name="collision">
+          <geometry>
+            <cylinder>
+              <radius>0.03</radius>
+              <length>0.2</length>
+            </cylinder>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <cylinder>
+              <radius>0.03</radius>
+              <length>0.2</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>0.2 0.2 0.2 1</ambient>
+            <diffuse>0.3 0.3 0.3 1</diffuse>
+          </material>
+        </visual>
+      </link>
+      
+      <!-- Gripper/End Effector -->
+      <link name="gripper">
+        <pose>0.525 0 0.2 0 0 0</pose>
+        <inertial>
+          <mass>0.5</mass>
+          <inertia>
+            <ixx>0.001</ixx>
+            <iyy>0.001</iyy>
+            <izz>0.001</izz>
+          </inertia>
+        </inertial>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.08 0.08 0.08</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.08 0.08 0.08</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0 0.5 1 1</ambient>
+            <diffuse>0 0.6 1 1</diffuse>
+          </material>
+        </visual>
+      </link>
+      
+      <!-- Joints -->
+      <joint name="joint1" type="revolute">
+        <parent>base_link</parent>
+        <child>link1</child>
+        <pose>0 0 -0.1 0 0 0</pose>
+        <axis>
+          <xyz>0 0 1</xyz>
+          <limit>
+            <lower>-2.8973</lower>
+            <upper>2.8973</upper>
+          </limit>
+        </axis>
+      </joint>
+      
+      <joint name="joint2" type="revolute">
+        <parent>link1</parent>
+        <child>link2</child>
+        <pose>-0.15 0 0 0 0 0</pose>
+        <axis>
+          <xyz>0 1 0</xyz>
+          <limit>
+            <lower>-1.7628</lower>
+            <upper>1.7628</upper>
+          </limit>
+        </axis>
+      </joint>
+      
+      <joint name="joint3" type="revolute">
+        <parent>link2</parent>
+        <child>link3</child>
+        <pose>-0.125 0 0 0 0 0</pose>
+        <axis>
+          <xyz>0 1 0</xyz>
+          <limit>
+            <lower>-1.7628</lower>
+            <upper>1.7628</upper>
+          </limit>
+        </axis>
+      </joint>
+      
+      <joint name="joint4" type="revolute">
+        <parent>link3</parent>
+        <child>link4</child>
+        <pose>-0.1 0 0 0 0 0</pose>
+        <axis>
+          <xyz>0 1 0</xyz>
+          <limit>
+            <lower>-3.0718</lower>
+            <upper>3.0718</upper>
+          </limit>
+        </axis>
+      </joint>
+      
+      <joint name="joint5" type="fixed">
+        <parent>link4</parent>
+        <child>gripper</child>
+      </joint>
+      
+    </model>
     
+    <!-- Red Cube (Target Object) -->
     <model name="cube">
-      <pose>0.5 0 0.5 0 0 0</pose>
+      <pose>0.5 0 0.525 0 0 0</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
@@ -105,6 +368,7 @@ class GazeboSimRunner:
       </link>
     </model>
     
+    <!-- Green Target Marker -->
     <model name="target">
       <pose>0.5 0.3 0.5 0 0 0</pose>
       <static>true</static>
@@ -128,10 +392,11 @@ class GazeboSimRunner:
 </sdf>
 """
         
-        world_file = self.output_dir / "pick_place.world"
+        world_file = self.output_dir / "panda_robot_world.sdf"
         with open(world_file, 'w') as f:
             f.write(world_content)
         
+        print(f"✓ Created custom Panda-like robot world: {world_file}")
         return str(world_file)
     
     def launch_gazebo(self, world_file: str, headless: bool = False) -> bool:
@@ -307,9 +572,9 @@ class GazeboSimRunner:
         }
         
         try:
-            # Step 1: Create world (with robot already included!)
+            # Step 1: Create world
             world_file = self.create_world_file()
-            report["logs"].append("World file created with robot arm")
+            report["logs"].append("World file created")
             
             # Step 2: Launch Gazebo (GUI mode on VM)
             if not self.launch_gazebo(world_file, headless=False):
@@ -318,10 +583,9 @@ class GazeboSimRunner:
                 return report
             
             report["logs"].append("Gazebo launched successfully")
-            report["logs"].append("Robot arm loaded from world file")
             
             # Step 3: Take initial screenshot
-            time.sleep(3)
+            time.sleep(2)
             self.take_screenshot("start.png")
             report["screenshots"].append("start.png")
             report["logs"].append("Initial screenshot captured")
@@ -337,8 +601,13 @@ class GazeboSimRunner:
             report["screenshots"].append("end.png")
             report["logs"].append("Final screenshot captured")
             
-            report["logs"].append("Simulation completed successfully")
-            report["status"] = "completed"
+            # Step 6: Check status
+            if self.sim_process and self.sim_process.poll() is None:
+                report["logs"].append("Simulation completed successfully")
+                report["status"] = "completed"
+            else:
+                report["logs"].append("Simulation process ended")
+                report["status"] = "completed"
             
         except Exception as e:
             report["status"] = "error"
