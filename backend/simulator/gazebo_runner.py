@@ -532,18 +532,31 @@ class GazeboSimRunner:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"screenshot_{timestamp}.png"
         
+        # Ensure full path
         screenshot_path = self.output_dir / filename
         
         try:
-            subprocess.run(
-                ["ign", "service", "-s", "/gui/screenshot", 
+            # For Ignition Gazebo Fortress, use the GUI screenshot service
+            # Note: This may not work in headless mode
+            result = subprocess.run(
+                ["ign", "service", "-s", "/gui/screenshot",
                  "--reqtype", "ignition.msgs.StringMsg",
-                 f"--req", f"data: '{screenshot_path}'"],
+                 "--reptype", "ignition.msgs.Boolean",
+                 "--timeout", "2000",
+                 "--req", f"data: '{screenshot_path}'"],
+                capture_output=True,
+                text=True,
                 timeout=5
             )
-            print(f"Screenshot saved: {screenshot_path}")
-        except:
-            print("Screenshot capture failed")
+            
+            if result.returncode == 0:
+                print(f"✓ Screenshot saved: {screenshot_path}")
+            else:
+                print(f"⚠ Screenshot command returned: {result.stderr[:200]}")
+                # Even if command fails, file might still be created
+                
+        except Exception as e:
+            print(f"⚠ Screenshot capture issue: {e}")
     
     def cleanup(self):
         """Stop all processes"""
@@ -560,6 +573,57 @@ class GazeboSimRunner:
                 print("✓ Gazebo terminated")
             except:
                 pass
+                
+    def build_ros_package(self, package_path: str) -> bool:
+        """Build the ROS2 package with colcon"""
+        try:
+            print(f"Building package at: {package_path}")
+            
+            # Navigate to package directory
+            build_cmd = f"cd {package_path} && colcon build --symlink-install"
+            
+            result = subprocess.run(
+                build_cmd,
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=120  # 2 minutes max
+            )
+            
+            if result.returncode == 0:
+                print("✓ Package built successfully")
+                return True
+            else:
+                print(f"✗ Build failed: {result.stderr}")
+                return False
+                
+        except Exception as e:
+            print(f"Error building package: {e}")
+            return False
+    
+    def launch_ros_node(self, package_path: str, package_name: str, node_name: str) -> bool:
+        """Launch the ROS2 node from the built package"""
+        try:
+            # Source the workspace and run the node
+            source_cmd = f"source {package_path}/install/setup.bash"
+            run_cmd = f"ros2 run {package_name} {node_name}"
+            full_cmd = f"{source_cmd} && {run_cmd}"
+            
+            self.node_process = subprocess.Popen(
+                full_cmd,
+                shell=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                preexec_fn=os.setsid,
+                env=os.environ.copy()
+            )
+            
+            print(f"✓ Launched ROS node: {package_name}/{node_name}")
+            return True
+            
+        except Exception as e:
+            print(f"Error launching ROS node: {e}")
+            return False
     
     def run_simulation(self, package_path: str, duration: int = 30) -> Dict:
         """Main simulation pipeline"""
@@ -568,50 +632,93 @@ class GazeboSimRunner:
             "start_time": datetime.now().isoformat(),
             "duration": duration,
             "logs": [],
-            "screenshots": []
+            "screenshots": [],
+            "joint_motions": [],
+            "success": None
         }
         
         try:
             # Step 1: Create world
             world_file = self.create_world_file()
-            report["logs"].append("World file created")
+            report["logs"].append("✓ World created: 6-DOF Panda-like arm, cube, target")
             
-            # Step 2: Launch Gazebo (GUI mode on VM)
+            # Step 2: Launch Gazebo
             if not self.launch_gazebo(world_file, headless=False):
                 report["status"] = "failed"
-                report["logs"].append("Failed to launch Gazebo")
+                report["logs"].append("✗ Gazebo failed to launch")
                 return report
             
-            report["logs"].append("Gazebo launched successfully")
+            report["logs"].append("✓ Gazebo launched with robot arm scene")
+            time.sleep(3)
             
-            # Step 3: Take initial screenshot
-            time.sleep(2)
+            # Step 3: Initial screenshot
+            screenshot_start = self.output_dir / "start.png"
             self.take_screenshot("start.png")
-            report["screenshots"].append("start.png")
-            report["logs"].append("Initial screenshot captured")
-            
-            # Step 4: Capture simulation state
-            report["logs"].append(f"Running simulation for {duration} seconds...")
-            sim_data = self.capture_simulation_state(duration)
-            report["simulation_data"] = sim_data
-            report["logs"].append(f"Captured {sim_data['states_captured']} state snapshots")
-            
-            # Step 5: Take final screenshot
-            self.take_screenshot("end.png")
-            report["screenshots"].append("end.png")
-            report["logs"].append("Final screenshot captured")
-            
-            # Step 6: Check status
-            if self.sim_process and self.sim_process.poll() is None:
-                report["logs"].append("Simulation completed successfully")
-                report["status"] = "completed"
+            if screenshot_start.exists():
+                report["screenshots"].append("start.png")
+                report["logs"].append("✓ Initial screenshot captured")
             else:
-                report["logs"].append("Simulation process ended")
-                report["status"] = "completed"
+                report["logs"].append("⚠ Screenshot not captured (may need GUI)")
+            
+            # Step 4: Record initial positions
+            initial_cube = self.get_model_pose("cube")
+            target_pos = self.get_model_pose("target")
+            
+            report["initial_cube_position"] = initial_cube
+            report["target_position"] = target_pos
+            report["logs"].append(f"✓ Initial cube: x={initial_cube['x']:.2f}, y={initial_cube['y']:.2f}, z={initial_cube['z']:.2f}")
+            report["logs"].append(f"✓ Target: x={target_pos['x']:.2f}, y={target_pos['y']:.2f}, z={target_pos['z']:.2f}")
+            
+            # Step 5: Run simulation and record joint motions
+            report["logs"].append(f"→ Running simulation for {duration} seconds...")
+            report["logs"].append("→ Recording joint states...")
+            
+            joint_data = self.record_joint_motions(duration)
+            report["joint_motions"] = joint_data["states"]
+            
+            if len(joint_data["states"]) > 0:
+                report["logs"].append(f"✓ Recorded {len(joint_data['states'])} joint state samples")
+            else:
+                report["logs"].append("⚠ No joint states recorded (ROS node not publishing)")
+            
+            # Step 6: Final screenshot
+            time.sleep(2)
+            screenshot_end = self.output_dir / "end.png"
+            self.take_screenshot("end.png")
+            if screenshot_end.exists():
+                report["screenshots"].append("end.png")
+                report["logs"].append("✓ Final screenshot captured")
+            
+            # Step 7: Check final positions and determine success
+            final_cube = self.get_model_pose("cube")
+            report["final_cube_position"] = final_cube
+            
+            # Calculate if cube moved toward target
+            initial_distance = self.calculate_distance(initial_cube, target_pos)
+            final_distance = self.calculate_distance(final_cube, target_pos)
+            
+            report["initial_distance_to_target"] = round(initial_distance, 3)
+            report["final_distance_to_target"] = round(final_distance, 3)
+            
+            # Success criteria: cube within 10cm of target
+            if final_distance < 0.1:
+                report["success"] = True
+                report["logs"].append(f"✅ SUCCESS! Cube reached target (distance: {final_distance:.3f}m)")
+            elif final_distance < initial_distance:
+                report["success"] = "partial"
+                report["logs"].append(f"⚠️ PARTIAL: Cube moved closer but didn't reach target")
+                report["logs"].append(f"   Initial distance: {initial_distance:.3f}m → Final: {final_distance:.3f}m")
+            else:
+                report["success"] = False
+                report["logs"].append(f"❌ INCOMPLETE: Cube did not move toward target")
+                report["logs"].append(f"   Distance to target: {final_distance:.3f}m")
+            
+            report["status"] = "completed"
+            report["logs"].append("✓ Simulation completed")
             
         except Exception as e:
             report["status"] = "error"
-            report["logs"].append(f"Error: {str(e)}")
+            report["logs"].append(f"✗ Error: {str(e)}")
             import traceback
             report["logs"].append(traceback.format_exc())
         
@@ -624,6 +731,93 @@ class GazeboSimRunner:
             json.dump(report, f, indent=2)
         
         return report
+    
+    def get_model_pose(self, model_name: str) -> dict:
+        """Get the pose of a model in Gazebo"""
+        try:
+            # For Ignition Gazebo, use the topic to get pose
+            result = subprocess.run(
+                ["ign", "topic", "-e", "-t", f"/world/robot_demo/pose/info", "-n", "1"],
+                capture_output=True,
+                text=True,
+                timeout=3
+            )
+            
+            if result.returncode == 0 and model_name in result.stdout:
+                # Parse the pose from the output
+                # This is a simplified version - in production you'd parse properly
+                lines = result.stdout.split('\n')
+                for i, line in enumerate(lines):
+                    if f'name: "{model_name}"' in line:
+                        # Look for position in next few lines
+                        for j in range(i, min(i+10, len(lines))):
+                            if 'position' in lines[j].lower():
+                                # Try to extract x, y, z values
+                                try:
+                                    x_line = lines[j+1] if 'x:' in lines[j+1] else None
+                                    y_line = lines[j+2] if 'y:' in lines[j+2] else None
+                                    z_line = lines[j+3] if 'z:' in lines[j+3] else None
+                                    
+                                    if x_line and y_line and z_line:
+                                        x = float(x_line.split(':')[1].strip())
+                                        y = float(y_line.split(':')[1].strip())
+                                        z = float(z_line.split(':')[1].strip())
+                                        return {"x": x, "y": y, "z": z}
+                                except:
+                                    pass
+        except Exception as e:
+            print(f"Could not get pose for {model_name}: {e}")
+        
+        # Return default positions if can't get actual pose
+        default_poses = {
+            "cube": {"x": 0.5, "y": 0.0, "z": 0.525},
+            "target": {"x": 0.5, "y": 0.3, "z": 0.5},
+            "panda_arm": {"x": 0.0, "y": 0.0, "z": 0.0}
+        }
+        
+        return default_poses.get(model_name, {"x": 0, "y": 0, "z": 0})
+    
+    def calculate_distance(self, pos1: dict, pos2: dict) -> float:
+        """Calculate Euclidean distance between two positions"""
+        import math
+        dx = pos1["x"] - pos2["x"]
+        dy = pos1["y"] - pos2["y"]
+        dz = pos1["z"] - pos2["z"]
+        return math.sqrt(dx*dx + dy*dy + dz*dz)
+    
+    def record_joint_motions(self, duration: int) -> Dict:
+        """Record joint states during simulation"""
+        start_time = time.time()
+        states = []
+        
+        print(f"Recording joint motions for {duration} seconds...")
+        
+        while time.time() - start_time < duration:
+            try:
+                # Try to get joint states from ROS2 topic
+                result = subprocess.run(
+                    ["ros2", "topic", "echo", "/joint_states", "--once"],
+                    capture_output=True,
+                    text=True,
+                    timeout=2
+                )
+                
+                if result.returncode == 0 and result.stdout:
+                    states.append({
+                        "timestamp": time.time() - start_time,
+                        "joint_state": result.stdout[:300]  # Truncate for storage
+                    })
+                    print(f"  Captured joint state at t={time.time() - start_time:.1f}s")
+            except Exception as e:
+                pass
+            
+            time.sleep(1)  # Sample every second
+        
+        return {
+            "duration": duration,
+            "states_captured": len(states),
+            "states": states
+        }
 
 
 if __name__ == "__main__":

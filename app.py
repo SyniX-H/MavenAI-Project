@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 # Import custom modules
 from backend.checker.ros2_checker import ROS2CodeChecker
-from backend.simulator.gazebo_runner1 import GazeboSimRunner
+from backend.simulator.gazebo_runner import GazeboSimRunner
 
 app = Flask(__name__)
 CORS(app)

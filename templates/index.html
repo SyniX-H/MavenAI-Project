@@ -275,6 +275,14 @@
         .step.completed .step-number {
             background: #4caf50;
         }
+
+        .success-box {
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -338,6 +346,7 @@
                 <div id="simStatus" class="hidden"></div>
                 <div id="simulationResults" class="hidden">
                     <h3 style="margin: 20px 0 10px 0;">Simulation Results:</h3>
+                    <div id="successIndicator"></div>
                     <div class="report-box" id="simLogs"></div>
                     <div id="screenshots" class="screenshot-gallery"></div>
                 </div>
@@ -365,6 +374,7 @@
         const simLogs = document.getElementById('simLogs');
         const screenshots = document.getElementById('screenshots');
         const simDuration = document.getElementById('simDuration');
+        const successIndicator = document.getElementById('successIndicator');
 
         // Progress steps
         const step1 = document.getElementById('step1');
@@ -505,8 +515,37 @@
         });
 
         function displaySimulationResults(report) {
+            // Display success/failure indicator
+            successIndicator.innerHTML = '';
+            if (report.success !== null && report.success !== undefined) {
+                const successBox = document.createElement('div');
+                successBox.className = 'success-box';
+                
+                if (report.success === true) {
+                    successBox.style.background = '#4caf50';
+                    successBox.style.color = 'white';
+                    successBox.innerHTML = '✅ SUCCESS! Cube reached target';
+                } else if (report.success === 'partial') {
+                    successBox.style.background = '#ff9800';
+                    successBox.style.color = 'white';
+                    successBox.innerHTML = '⚠️ PARTIAL: Cube moved closer';
+                } else {
+                    successBox.style.background = '#f44336';
+                    successBox.style.color = 'white';
+                    successBox.innerHTML = '❌ INCOMPLETE: Cube did not reach target';
+                }
+                
+                if (report.final_distance_to_target) {
+                    successBox.innerHTML += `<br><small style="font-size: 0.8rem;">Distance to target: ${report.final_distance_to_target}m</small>`;
+                }
+                
+                successIndicator.appendChild(successBox);
+            }
+            
+            // Display full JSON logs
             simLogs.textContent = JSON.stringify(report, null, 2);
             
+            // Show screenshots
             screenshots.innerHTML = '';
             if (report.screenshots && report.screenshots.length > 0) {
                 report.screenshots.forEach(img => {
@@ -514,7 +553,10 @@
                     imgEl.src = `${API_URL}/results/${img}`;
                     imgEl.alt = img;
                     imgEl.onerror = () => {
-                        imgEl.style.display = 'none';
+                        const placeholder = document.createElement('div');
+                        placeholder.style.cssText = 'padding: 20px; background: #f0f0f0; border-radius: 8px; text-align: center;';
+                        placeholder.innerHTML = `📷 ${img}<br><small>(Not available)</small>`;
+                        imgEl.replaceWith(placeholder);
                     };
                     screenshots.appendChild(imgEl);
                 });

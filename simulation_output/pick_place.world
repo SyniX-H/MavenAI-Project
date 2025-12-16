@@ -1,19 +1,23 @@
 <?xml version="1.0"?>
 <sdf version="1.6">
   <world name="pick_and_place_world">
-
+    
+    <!-- Physics -->
     <physics name="1ms" type="ignored">
       <max_step_size>0.001</max_step_size>
       <real_time_factor>1.0</real_time_factor>
     </physics>
-
+    
+    <!-- Lighting -->
     <light type="directional" name="sun">
+      <cast_shadows>true</cast_shadows>
       <pose>0 0 10 0 0 0</pose>
+      <diffuse>0.8 0.8 0.8 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
       <direction>-0.5 0.1 -0.9</direction>
     </light>
-
-    smokeless_plane>
-
+    
+    <!-- Ground plane -->
     <model name="ground_plane">
       <static>true</static>
       <link name="link">
@@ -32,9 +36,69 @@
               <size>100 100</size>
             </plane>
           </geometry>
+          <material>
+            <ambient>0.8 0.8 0.8 1</ambient>
+            <diffuse>0.8 0.8 0.8 1</diffuse>
+          </material>
         </visual>
       </link>
     </model>
-
+    
+    <!-- Simple cube to pick -->
+    <model name="cube">
+      <pose>0.5 0 0.5 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.05 0.05 0.05</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.05 0.05 0.05</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 0 0 1</ambient>
+            <diffuse>1 0 0 1</diffuse>
+          </material>
+        </visual>
+        <inertial>
+          <mass>0.1</mass>
+          <inertia>
+            <ixx>0.000017</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>0.000017</iyy>
+            <iyz>0</iyz>
+            <izz>0.000017</izz>
+          </inertia>
+        </inertial>
+      </link>
+    </model>
+    
+    <!-- Target position marker -->
+    <model name="target">
+      <pose>0.5 0.3 0.5 0 0 0</pose>
+      <static>true</static>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <cylinder>
+              <radius>0.03</radius>
+              <length>0.01</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>0 1 0 1</ambient>
+            <diffuse>0 1 0 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+    
   </world>
 </sdf>

@@ -1,15 +1,20 @@
-# ROS2 Code Checker and Simulation Tool
+# ROS2 Code Checker & Simulator
+**Powered by MavenAI**
 
-A comprehensive tool for validating ROS2 packages and testing them in Gazebo simulation with robotic arms.
+> Advanced Robotics Testing Platform for validating and simulating ROS2 packages
 
-## 📋 Overview
+---
 
-This system provides:
-- **Code Validation**: Syntax checking, ROS2 structure verification, and safety analysis
-- **Simulation Testing**: Automated Gazebo simulation with UR5 robotic arm
-- **Web Interface**: User-friendly interface for upload, validation, and visualization
+## 🎯 Overview
 
-Built as part of a robotics internship assignment to demonstrate ROS2 development, testing workflows, and simulation integration.
+This system provides a complete pipeline for testing ROS2 robotic code:
+- **Code Validation**: Syntax, structure, and safety checks
+- **Gazebo Simulation**: 6-DOF robotic arm with pick-and-place scenario
+- **Web Interface**: User-friendly platform for testing
+
+Built as part of the MavenAI Robotics Internship Assignment.
+
+---
 
 ## 🎯 Features
 
